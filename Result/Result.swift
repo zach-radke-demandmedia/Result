@@ -1,7 +1,7 @@
 //  Copyright (c) 2015 Rob Rix. All rights reserved.
 
 /// An enum representing either a failure with an explanatory error, or a success with a result value.
-public enum Result<T, Error: Swift.Error>: ResultProtocol, CustomStringConvertible, CustomDebugStringConvertible {
+public enum Result<T>: ResultProtocol, CustomStringConvertible, CustomDebugStringConvertible {
 	case success(T)
 	case failure(Error)
 
@@ -32,7 +32,7 @@ public enum Result<T, Error: Swift.Error>: ResultProtocol, CustomStringConvertib
 		do {
 			self = .success(try f())
 		} catch {
-			self = .failure(error as! Error)
+			self = .failure(error)
 		}
 	}
 
@@ -108,14 +108,14 @@ public enum Result<T, Error: Swift.Error>: ResultProtocol, CustomStringConvertib
 
 // MARK: - Derive result from failable closure
 
-public func materialize<T>(_ f: () throws -> T) -> Result<T, NSError> {
+public func materialize<T>(_ f: () throws -> T) -> Result<T> {
 	return materialize(try f())
 }
 
-public func materialize<T>(_ f: @autoclosure () throws -> T) -> Result<T, NSError> {
+public func materialize<T>(_ f: @autoclosure () throws -> T) -> Result<T> {
 	do {
 		return .success(try f())
-	} catch let error as NSError {
+	} catch let error {
 		return .failure(error)
 	}
 }
@@ -129,9 +129,9 @@ public func materialize<T>(_ f: @autoclosure () throws -> T) -> Result<T, NSErro
 /// This is convenient for wrapping Cocoa API which returns an object or `nil` + an error, by reference. e.g.:
 ///
 ///     Result.try { NSData(contentsOfURL: URL, options: .DataReadingMapped, error: $0) }
-public func `try`<T>(_ function: String = #function, file: String = #file, line: Int = #line, `try`: (NSErrorPointer) -> T?) -> Result<T, NSError> {
+public func `try`<T>(_ function: String = #function, file: String = #file, line: Int = #line, `try`: (NSErrorPointer) -> T?) -> Result<T> {
 	var error: NSError?
-	return `try`(&error).map(Result.success) ?? .failure(error ?? Result<T, NSError>.error(function: function, file: file, line: line))
+	return `try`(&error).map(Result.success) ?? .failure(error ?? Result<T>.error(function: function, file: file, line: line))
 }
 
 /// Constructs a Result with the result of calling `try` with an error pointer.
@@ -139,26 +139,14 @@ public func `try`<T>(_ function: String = #function, file: String = #file, line:
 /// This is convenient for wrapping Cocoa API which returns a `Bool` + an error, by reference. e.g.:
 ///
 ///     Result.try { NSFileManager.defaultManager().removeItemAtURL(URL, error: $0) }
-public func `try`(_ function: String = #function, file: String = #file, line: Int = #line, `try`: (NSErrorPointer) -> Bool) -> Result<(), NSError> {
+public func `try`(_ function: String = #function, file: String = #file, line: Int = #line, `try`: (NSErrorPointer) -> Bool) -> Result<()> {
 	var error: NSError?
 	return `try`(&error) ?
 		.success(())
-	:	.failure(error ?? Result<(), NSError>.error(function: function, file: file, line: line))
+	:	.failure(error ?? Result<()>.error(function: function, file: file, line: line))
 }
 
 #endif
-
-// MARK: - ErrorProtocolConvertible conformance
-	
-extension NSError: ErrorProtocolConvertible {
-	public static func error(from error: Swift.Error) -> Self {
-		func cast<T: NSError>(_ error: Swift.Error) -> T {
-			return error as! T
-		}
-
-		return cast(error)
-	}
-}
 
 // MARK: -
 
@@ -169,24 +157,5 @@ extension NSError: ErrorProtocolConvertible {
 /// contains an `Int`eger and is guaranteed never to be a `Failure`.
 public enum NoError: Swift.Error { }
 
-// MARK: - migration support
-extension Result {
-	@available(*, unavailable, renamed: "success")
-	public static func Success(_: T) -> Result<T, Error> {
-		fatalError()
-	}
-
-	@available(*, unavailable, renamed: "failure")
-	public static func Failure(_: Error) -> Result<T, Error> {
-		fatalError()
-	}
-}
-
-extension NSError {
-	@available(*, unavailable, renamed: "error(from:)")
-	public static func errorFromErrorType(_ error: Swift.Error) -> Self {
-		fatalError()
-	}
-}
 
 import Foundation

@@ -22,23 +22,23 @@ final class ResultTests: XCTestCase {
 
 	func testErrorsIncludeTheSourceFile() {
 		let file = #file
-		XCTAssert(Result<(), NSError>.error().file == file)
+		XCTAssert(Result<()>.error().file == file)
 	}
 
 	func testErrorsIncludeTheSourceLine() {
-		let (line, error) = (#line, Result<(), NSError>.error())
+		let (line, error) = (#line, Result<()>.error())
 		XCTAssertEqual(error.line ?? -1, line)
 	}
 
 	func testErrorsIncludeTheCallingFunction() {
 		let function = #function
-		XCTAssert(Result<(), NSError>.error().function == function)
+		XCTAssert(Result<()>.error().function == function)
 	}
 
 	// MARK: Try - Catch
 	
 	func testTryCatchProducesSuccesses() {
-		let result: Result<String, NSError> = Result(try tryIsSuccess("success"))
+		let result: Result<String> = Result(try tryIsSuccess("success"))
 		XCTAssert(result == success)
 	}
 	
@@ -47,15 +47,15 @@ final class ResultTests: XCTestCase {
 			/// FIXME: skipped on Linux because of crash with swift-3.0-PREVIEW-4.
 			print("Test Case `\(#function)` skipped on Linux because of crash with swift-3.0-PREVIEW-4.")
 		#else
-			let result: Result<String, NSError> = Result(try tryIsSuccess(nil))
-			XCTAssert(result.error == error)
+			let result: Result<String> = Result(try tryIsSuccess(nil))
+			XCTAssert((result.error as? NSError) == error)
 		#endif
 	}
 
 	func testTryCatchWithFunctionProducesSuccesses() {
 		let function = { try tryIsSuccess("success") }
 
-		let result: Result<String, NSError> = Result(attempt: function)
+		let result: Result<String> = Result(attempt: function)
 		XCTAssert(result == success)
 	}
 
@@ -66,8 +66,8 @@ final class ResultTests: XCTestCase {
 		#else
 			let function = { try tryIsSuccess(nil) }
 
-			let result: Result<String, NSError> = Result(attempt: function)
-			XCTAssert(result.error == error)
+			let result: Result<String> = Result(attempt: function)
+			XCTAssert((result.error as? NSError) == error)
 		#endif
 	}
 
@@ -75,7 +75,7 @@ final class ResultTests: XCTestCase {
 		let result1 = materialize(try tryIsSuccess("success"))
 		XCTAssert(result1 == success)
 
-		let result2: Result<String, NSError> = materialize { try tryIsSuccess("success") }
+		let result2: Result<String> = materialize { try tryIsSuccess("success") }
 		XCTAssert(result2 == success)
 	}
 
@@ -85,32 +85,32 @@ final class ResultTests: XCTestCase {
 			print("Test Case `\(#function)` skipped on Linux because of crash with swift-3.0-PREVIEW-4.")
 		#else
 			let result1 = materialize(try tryIsSuccess(nil))
-			XCTAssert(result1.error == error)
+			XCTAssert((result1.error as? NSError) == error)
 
-			let result2: Result<String, NSError> = materialize { try tryIsSuccess(nil) }
-			XCTAssert(result2.error == error)
+			let result2: Result<String> = materialize { try tryIsSuccess(nil) }
+			XCTAssert((result2.error as? NSError) == error)
 		#endif
 	}
 
 	// MARK: Recover
 
 	func testRecoverProducesLeftForLeftSuccess() {
-		let left = Result<String, NSError>.success("left")
+		let left = Result<String>.success("left")
 		XCTAssertEqual(left.recover("right"), "left")
 	}
 
 	func testRecoverProducesRightForLeftFailure() {
 		struct Error: Swift.Error {}
 
-		let left = Result<String, Error>.failure(Error())
+		let left = Result<String>.failure(Error())
 		XCTAssertEqual(left.recover("right"), "right")
 	}
 
 	// MARK: Recover With
 
 	func testRecoverWithProducesLeftForLeftSuccess() {
-		let left = Result<String, NSError>.success("left")
-		let right = Result<String, NSError>.success("right")
+		let left = Result<String>.success("left")
+		let right = Result<String>.success("right")
 
 		XCTAssertEqual(left.recover(with: right).value, "left")
 	}
@@ -118,8 +118,8 @@ final class ResultTests: XCTestCase {
 	func testRecoverWithProducesRightSuccessForLeftFailureAndRightSuccess() {
 		struct Error: Swift.Error {}
 
-		let left = Result<String, Error>.failure(Error())
-		let right = Result<String, Error>.success("right")
+		let left = Result<String>.failure(Error())
+		let right = Result<String>.success("right")
 
 		XCTAssertEqual(left.recover(with: right).value, "right")
 	}
@@ -127,10 +127,10 @@ final class ResultTests: XCTestCase {
 	func testRecoverWithProducesRightFailureForLeftFailureAndRightFailure() {
 		enum Error: Swift.Error { case left, right }
 
-		let left = Result<String, Error>.failure(.left)
-		let right = Result<String, Error>.failure(.right)
+		let left = Result<String>.failure(Error.left)
+		let right = Result<String>.failure(Error.right)
 
-		XCTAssertEqual(left.recover(with: right).error, .right)
+		XCTAssertEqual(left.recover(with: right).error as? Error, Error.right)
 	}
 
 	// MARK: Cocoa API idioms
@@ -163,21 +163,6 @@ final class ResultTests: XCTestCase {
 
 	#endif
 
-	func testTryMapProducesSuccess() {
-		let result = success.tryMap(tryIsSuccess)
-		XCTAssert(result == success)
-	}
-
-	func testTryMapProducesFailure() {
-		#if os(Linux)
-			/// FIXME: skipped on Linux because of crash with swift-3.0-PREVIEW-4.
-			print("Test Case `\(#function)` skipped on Linux because of crash with swift-3.0-PREVIEW-4.")
-		#else
-			let result = Result<String, NSError>.success("fail").tryMap(tryIsSuccess)
-			XCTAssert(result == failure)
-		#endif
-	}
-
 	// MARK: Operators
 
 	func testConjunctionOperator() {
@@ -189,24 +174,24 @@ final class ResultTests: XCTestCase {
 		}
 
 		let resultFailureBoth = failure &&& failure2
-		XCTAssert(resultFailureBoth.error == error)
+		XCTAssert((resultFailureBoth.error as? NSError) == error)
 
 		let resultFailureLeft = failure &&& success
-		XCTAssert(resultFailureLeft.error == error)
+		XCTAssert((resultFailureLeft.error as? NSError) == error)
 
 		let resultFailureRight = success &&& failure2
-		XCTAssert(resultFailureRight.error == error2)
+		XCTAssert((resultFailureRight.error as? NSError) == error2)
 	}
 }
 
 
 // MARK: - Fixtures
 
-let success = Result<String, NSError>.success("success")
+let success = Result<String>.success("success")
 let error = NSError(domain: "com.antitypical.Result", code: 1, userInfo: nil)
 let error2 = NSError(domain: "com.antitypical.Result", code: 2, userInfo: nil)
-let failure = Result<String, NSError>.failure(error)
-let failure2 = Result<String, NSError>.failure(error2)
+let failure = Result<String>.failure(error)
+let failure2 = Result<String>.failure(error2)
 
 
 // MARK: - Helpers
@@ -217,7 +202,7 @@ func attempt<T>(_ value: T, succeed: Bool, error: NSErrorPointer) -> T? {
 	if succeed {
 		return value
 	} else {
-		error?.pointee = Result<(), NSError>.error()
+		error?.pointee = Result<()>.error()
 		return nil
 	}
 }
@@ -234,15 +219,15 @@ func tryIsSuccess(_ text: String?) throws -> String {
 
 extension NSError {
 	var function: String? {
-		return userInfo[Result<(), NSError>.functionKey] as? String
+		return userInfo[Result<()>.functionKey] as? String
 	}
 	
 	var file: String? {
-		return userInfo[Result<(), NSError>.fileKey] as? String
+		return userInfo[Result<()>.fileKey] as? String
 	}
 
 	var line: Int? {
-		return userInfo[Result<(), NSError>.lineKey] as? Int
+		return userInfo[Result<()>.lineKey] as? Int
 	}
 }
 
@@ -269,12 +254,6 @@ extension ResultTests {
 			("testRecoverWithProducesLeftForLeftSuccess", testRecoverWithProducesLeftForLeftSuccess),
 			("testRecoverWithProducesRightSuccessForLeftFailureAndRightSuccess", testRecoverWithProducesRightSuccessForLeftFailureAndRightSuccess),
 			("testRecoverWithProducesRightFailureForLeftFailureAndRightFailure", testRecoverWithProducesRightFailureForLeftFailureAndRightFailure),
-//			("testTryProducesFailuresForBooleanAPIWithErrorReturnedByReference", testTryProducesFailuresForBooleanAPIWithErrorReturnedByReference),
-//			("testTryProducesFailuresForOptionalWithErrorReturnedByReference", testTryProducesFailuresForOptionalWithErrorReturnedByReference),
-//			("testTryProducesSuccessesForBooleanAPI", testTryProducesSuccessesForBooleanAPI),
-//			("testTryProducesSuccessesForOptionalAPI", testTryProducesSuccessesForOptionalAPI),
-			("testTryMapProducesSuccess", testTryMapProducesSuccess),
-			("testTryMapProducesFailure", testTryMapProducesFailure),
 			("testConjunctionOperator", testConjunctionOperator),
 		]
 	}
